@@ -6,8 +6,8 @@
 #pkgname=('linux' 'linux-headers' 'linux-docs') # Build stock -ARCH kernel
 pkgname=linux-mainline       # Build kernel with a different name
 _kernelname=${pkgname#linux}
-_basekernel=3.5-rc5
-pkgver=3.5rc5
+_basekernel=3.5-rc7
+pkgver=3.5rc7
 pkgrel=1
 arch=('i686' 'x86_64')
 url="http://www.kernel.org/"
@@ -23,7 +23,7 @@ source=("http://www.kernel.org/pub/linux/kernel/v3.x/testing/linux-${_basekernel
         "linux.preset"
         'change-default-console-loglevel.patch'
         'radeon_bios_hack.patch')
-md5sums=('af672daf00ccfcedec54ca752cac543b'
+md5sums=('dae9ca5c9a4b9c69c7ee328df7d18ac1'
          '3f2c307c8ffae67f60c13ef69af8364a'
          '18d9d09152bafffaef78f2aac07e7145'
          'eb14dcfd80c00852ef81ded6e826826a'
@@ -47,6 +47,10 @@ build() {
   # then dropped because the reasoning was unclear. However, it is clearly
   # needed.
   #patch -Np1 -i "${srcdir}/i915-fix-ghost-tv-output.patch"
+
+  # Fix backlight control on some laptops:
+  # https://bugzilla.kernel.org/show_bug.cgi?id=43168
+  #patch -Np1 -i "${srcdir}/3.4.4-fix-backlight-regression.patch"
 
   # Patch submitted upstream, waiting for inclusion:
   # https://lkml.org/lkml/2012/2/19/51
@@ -73,16 +77,12 @@ build() {
   fi
   # linux-mainline: Fix localmodconfig
   sed -i "s|/sbin/lsmod|/bin/lsmod|" scripts/kconfig/streamline_config.pl # Fix localmodconfig
-  # linux-mainline: fix 3.4rc6
-  sed -i "s|CONFIG_IA32_AOUT.*|CONFIG_IA32_AOUT=y|" .config
 
-  # remove the sublevel from Makefile
-  # this ensures our kernel version is always 3.X-ARCH
-  # this way, minor kernel updates will not break external modules
-  # we need to change this soon, see FS#16702
-  #sed -ri 's|^(SUBLEVEL =).*|\1|' Makefile
   # set extraversion to pkgrel
-  sed -ri "s|^(EXTRAVERSION =).*|\1 -${pkgrel}|" Makefile
+  #sed -ri "s|^(EXTRAVERSION =).*|\1 -${pkgrel}|" Makefile
+
+  # don't run depmod on 'make install'. We'll do this ourselves in packaging
+  sed -i '2iexit 0' scripts/depmod.sh
 
   # get kernel version
   #make prepare
@@ -164,6 +164,12 @@ package_linux() {
   # add real version for building modules and running depmod from post_install/upgrade
   mkdir -p "${pkgdir}/lib/modules/extramodules-${_basekernel}${_kernelname:--ARCH}"
   echo "${_kernver}" > "${pkgdir}/lib/modules/extramodules-${_basekernel}${_kernelname:--ARCH}/version"
+
+  # move module tree /lib -> /usr/lib
+  mv "$pkgdir/lib" "$pkgdir/usr"
+
+  # Now we call depmod...
+  depmod -b "$pkgdir" -F System.map "$_kernver"
 }
 
 package_linux-headers() {
@@ -172,10 +178,10 @@ package_linux-headers() {
   #conflicts=('kernel26-headers')
   #replaces=('kernel26-headers')
 
-  mkdir -p "${pkgdir}/lib/modules/${_kernver}"
+  install -dm755 "${pkgdir}/usr/lib/modules/${_kernver}"
 
-  cd "${pkgdir}/lib/modules/${_kernver}"
-  ln -sf ../../../usr/src/linux-${_kernver} build
+  cd "${pkgdir}/usr/lib/modules/${_kernver}"
+  ln -sf ../../../src/linux-${_kernver} build
 
   cd "${srcdir}/linux-${_basekernel}"
   install -D -m644 Makefile \
