@@ -6,8 +6,8 @@
 #pkgname=('linux' 'linux-headers' 'linux-docs') # Build stock -ARCH kernel
 pkgname=linux-mainline       # Build kernel with a different name
 _kernelname=${pkgname#linux}
-_basekernel=3.5-rc7
-pkgver=3.5rc7
+_basekernel=3.6-rc1
+pkgver=3.6rc1
 pkgrel=1
 arch=('i686' 'x86_64')
 url="http://www.kernel.org/"
@@ -23,9 +23,9 @@ source=("http://www.kernel.org/pub/linux/kernel/v3.x/testing/linux-${_basekernel
         "linux.preset"
         'change-default-console-loglevel.patch'
         'radeon_bios_hack.patch')
-md5sums=('dae9ca5c9a4b9c69c7ee328df7d18ac1'
-         '3f2c307c8ffae67f60c13ef69af8364a'
-         '18d9d09152bafffaef78f2aac07e7145'
+md5sums=('a6242f9b1d71071ae7ea0d8be264b5da'
+         '848fcd7d9d80ded7391022a3b5abbb0f'
+         'd6279950303b61a5a5dcd64f24d1e0ed'
          'eb14dcfd80c00852ef81ded6e826826a'
          '9d3c56a4b999c8bfbd4018089a62f662'
          'dd9dc330955743b620b7f7c6e0c567e2')
@@ -38,24 +38,6 @@ build() {
 
   # add latest fixes from stable queue, if needed
   # http://git.kernel.org/?p=linux/kernel/git/stable/stable-queue.git
-
-  # Some chips detect a ghost TV output
-  # mailing list discussion: http://lists.freedesktop.org/archives/intel-gfx/2011-April/010371.html
-  # Arch Linux bug report: FS#19234
-  #
-  # It is unclear why this patch wasn't merged upstream, it was accepted,
-  # then dropped because the reasoning was unclear. However, it is clearly
-  # needed.
-  #patch -Np1 -i "${srcdir}/i915-fix-ghost-tv-output.patch"
-
-  # Fix backlight control on some laptops:
-  # https://bugzilla.kernel.org/show_bug.cgi?id=43168
-  #patch -Np1 -i "${srcdir}/3.4.4-fix-backlight-regression.patch"
-
-  # Patch submitted upstream, waiting for inclusion:
-  # https://lkml.org/lkml/2012/2/19/51
-  # add support for latest bios of Acer 1810T acerhdf module
-  #patch -Np1 -i "${srcdir}/fix-acerhdf-1810T-bios.patch"
 
   # set DEFAULT_CONSOLE_LOGLEVEL to 4 (same value as the 'quiet' kernel param)
   # remove this when a Kconfig knob is made available by upstream
@@ -114,7 +96,7 @@ build() {
 }
 
 package_linux() {
-  pkgdesc="The Linux Kernel and modules"
+  pkgdesc="The Linux Kernel and modules (mainline)"
   #groups=('base')
   depends=('coreutils' 'linux-firmware' 'kmod' 'mkinitcpio>=0.7')
   optdepends=('crda: to set the correct wireless channels of your country')
@@ -255,8 +237,9 @@ package_linux-headers() {
   cp drivers/media/dvb/dvb-core/*.h "${pkgdir}/usr/src/linux-${_kernver}/drivers/media/dvb/dvb-core/"
   # and...
   # http://bugs.archlinux.org/task/11194
-  mkdir -p "${pkgdir}/usr/src/linux-${_kernver}/include/config/dvb/"
-  cp include/config/dvb/*.h "${pkgdir}/usr/src/linux-${_kernver}/include/config/dvb/"
+  # linux-mainline: include/config/dvb doesn't exist
+  #mkdir -p "${pkgdir}/usr/src/linux-${_kernver}/include/config/dvb/"
+  #cp include/config/dvb/*.h "${pkgdir}/usr/src/linux-${_kernver}/include/config/dvb/"
 
   # add dvb headers for http://mcentral.de/hg/~mrec/em28xx-new
   # in reference to:
